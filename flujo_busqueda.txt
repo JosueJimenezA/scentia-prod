@@ -1,0 +1,35 @@
+                                    [ Usuario busca "X" ]
+                                            │
+                                            ▼
+                          ┌───────────────────────────────────┐
+                          │ 1. Buscar en PostgreSQL (Catálogo) │
+                          └─────────────────┬─────────────────┘
+                                            │
+                   ┌────────────────────────┴────────────────────────┐
+                   │                                                 │
+        [ Coincidencias > 0 ]                             [ 0 Coincidencias ]
+                   │                                                 │
+                   ▼                                                 ▼
+       Retornar resultados                       Retornar flag `found: false` y
+        locales de la BD                         sugerir búsqueda externa al usuario
+                                                                     │
+                                                                     ▼
+                                                   [ Usuario confirma búsqueda ]
+                                                                     │
+                                                                     ▼
+                                                  ┌──────────────────────────────────┐
+                                                  │ 2. API busca URL en Google/Bing  │
+                                                  │    ("PERFUME_USUARIO fragrantica")│
+                                                  └────────────────┬─────────────────┘
+                                                                   │
+                                                                   ▼
+                                                  ┌──────────────────────────────────┐
+                                                  │ 3. Ejecutar `scraper_optim.py`   │
+                                                  │    con la URL encontrada         │
+                                                  └────────────────┬─────────────────┘
+                                                                   │
+                                                                   ▼
+                                                  ┌──────────────────────────────────┐
+                                                  │ 4. Insertar nuevo perfume en BD  │
+                                                  │    y retornar resultado          │
+                                                  └──────────────────────────────────┘

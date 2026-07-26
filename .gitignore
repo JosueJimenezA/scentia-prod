@@ -1,0 +1,26 @@
+# === Entornos virtuales y Cache de Python ===
+.venv/
+venv/
+pyenv.cfg
+.lock
+CACHEDIR.TAG
+__pycache__/
+*.pyc
+
+# === Archivos temporales, logs y depuración ===
+scraping_sessions.log
+debug_page.html
+debug/
+.vscode/
+
+# === Dependencias de Node / Frontend ===
+node_modules/
+scentia-frontend/node_modules/
+dist/
+build/
+scentia-frontend/dist/
+scentia-frontend/build/
+
+# === Variables de entorno locales ===
+.env
+.env.local
