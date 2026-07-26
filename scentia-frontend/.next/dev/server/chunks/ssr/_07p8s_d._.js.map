@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///home/josuej/Documentos/ProyectoIntegrador/scentia-frontend/app/layout.js"],"sourcesContent":["import './globals.css';\n\nexport const metadata = {\n  title: 'SCENTIA | High-End Perfumery Intelligence',\n  description: 'Personalized fragrance discovery and collection platform.',\n};\n\nexport default function RootLayout({ children }) {\n  return (\n    <html lang=\"es\">\n      <body className=\"bg-neutral-950 text-neutral-100 antialiased font-sans min-h-screen\">\n        {children}\n      </body>\n    </html>\n  );\n}"],"names":["metadata","title","description","RootLayout","children","lang","className"],"mappings":";;;;;;;;;AAEO,MAAMA,WAAW;IACtBC,OAAO;IACPC,aAAa;AACf;AAEe,SAASC,WAAW,EAAEC,QAAQ,EAAE;IAC7C,qBACE,8OAAC;QAAKC,MAAK;kBACT,cAAA,8OAAC;YAAKC,WAAU;sBACbF;;;;;;;;;;;AAIT"}},
+    {"offset": {"line": 42, "column": 0}, "map": {"version":3,"sources":["file:///home/josuej/Documentos/ProyectoIntegrador/scentia-frontend/node_modules/next/src/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.ts"],"sourcesContent":["module.exports = (\n  require('../../module.compiled') as typeof import('../../module.compiled')\n).vendored['react-rsc']!.ReactJsxDevRuntime\n"],"names":["module","exports","require","vendored","ReactJsxDevRuntime"],"mappings":"AAAAA,OAAOC,OAAO,GACZC,QAAQ,4HACRC,QAAQ,CAAC,YAAY,CAAEC,kBAAkB","ignoreList":[0]}}]
+}
