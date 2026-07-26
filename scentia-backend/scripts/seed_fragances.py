@@ -20,8 +20,12 @@ from app.limpieza import (
 
 def reseed_fragrances():
     db = SessionLocal()
-    csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/fragrantica_data_from_scraper.csv'))
-
+    csv_path = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__), 
+        "../data/fragrantica_data_from_scraper.csv"
+    )
+)
     if not os.path.exists(csv_path):
         print(f"❌ Error: No se encontró el archivo en {csv_path}")
         return
