@@ -199,23 +199,36 @@ async def scrape_and_add_fragrance(
         }
 
     # PASO 4: Si no existe la URL, extraer con scraper_busqueda.py e insertar
-    scraper_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../scraper/scraper_busqueda.py'))
-    
+
+    ROUTER_DIR = os.path.dirname(os.path.abspath(__file__)) # .../scentia-backend/app/routers
+    BACKEND_DIR = os.path.abspath(os.path.join(ROUTER_DIR, "../..")) # .../scentia-backend
+    PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, "..")) # .../raíz_proyecto
+
+    scraper_path = os.path.join(BACKEND_DIR, "scraper", "scraper_busqueda.py")
+    csv_path = os.path.join(PROJECT_ROOT, "data", "fragrantica_data_from_scraper.csv")
+
     try:
         proc = await asyncio.create_subprocess_exec(
             sys.executable, scraper_path, "--single-url", target_url,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
+            cwd=BACKEND_DIR # Ejecuta el subproceso desde scentia-backend
         )
-        await asyncio.wait_for(proc.communicate(), timeout=40.0)
+        
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=40.0)
 
-        # Leer la última fila del CSV e insertarla en la BD
-        csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../data/fragrantica_data_from_scraper.csv'))
+        if proc.returncode != 0:
+            print(f"❌ Error en subproceso del scraper:\n{stderr.decode()}")
+            raise HTTPException(status_code=500, detail="Fallo al ejecutar el proceso de extracción.")
+
+        if not os.path.exists(csv_path):
+            raise HTTPException(status_code=500, detail="El archivo CSV de salida no existe.")
+
         df = pd.read_csv(csv_path, sep='|')
         matching_rows = df[df['url'] == target_url]
         
         if matching_rows.empty:
-            raise HTTPException(status_code=500, detail="El scraper no pudo extraer la información.")
+            raise HTTPException(status_code=500, detail="El scraper finalizó pero no guardó la URL esperada.")
 
         last_row_dict = matching_rows.iloc[-1].to_dict()
         new_fragrance = insert_single_fragrance_from_raw(db, last_row_dict)

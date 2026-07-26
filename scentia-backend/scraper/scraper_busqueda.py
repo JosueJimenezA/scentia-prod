@@ -14,10 +14,15 @@ USER_AGENTS = [
     "Mozilla/5.0 (X11; Linux x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 ]
 
-CHECKPOINT_FILE = "../data/fragrantica_data_from_scraper.csv"
-SEMILLA_FILE = "../data/perfume_catalog_links.csv"
-LOG_ERRORES_FILE = "../data/failed_urls.log"
-LOG_SESIONES_FILE = "../data/scraping_sessions.log"
+SCRAPER_DIR = os.path.dirname(os.path.abspath(__file__)) # .../scentia-backend/scraper
+BACKEND_DIR = os.path.abspath(os.path.join(SCRAPER_DIR, "..")) # .../scentia-backend
+PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, "..")) # .../raíz_proyecto
+
+# Rutas absolutas
+CHECKPOINT_FILE = os.path.join(PROJECT_ROOT, "data", "fragrantica_data_from_scraper.csv")
+SEMILLA_FILE = os.path.join(PROJECT_ROOT, "data", "perfume_catalog_links.csv")
+LOG_ERRORES_FILE = os.path.join(SCRAPER_DIR, "failed_urls.log")
+LOG_SESIONES_FILE = os.path.join(SCRAPER_DIR, "scraping_sessions.log")
 
 # Ajusta el número de pestañas concurrentes según tu CPU/Ancho de banda (3 a 5 es ideal)
 CONCURRENCY_LIMIT = 3
