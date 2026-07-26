@@ -38,3 +38,14 @@ def root():
         "version": settings.PROJECT_VERSION,
         "status": "online"
     }
+
+from sqlalchemy import inspect
+
+@app.get("/test-db")
+def test_db():
+    inspector = inspect(engine)
+    tablas = inspector.get_table_names()
+    return {
+        "status": "connected",
+        "tables": tablas
+    }
