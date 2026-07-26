@@ -19,8 +19,8 @@ BACKEND_DIR = os.path.abspath(os.path.join(SCRAPER_DIR, "..")) # .../scentia-bac
 PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, "..")) # .../raíz_proyecto
 
 # Rutas absolutas
-CHECKPOINT_FILE = os.path.join(PROJECT_ROOT, "data", "fragrantica_data_from_scraper.csv")
-SEMILLA_FILE = os.path.join(PROJECT_ROOT, "data", "perfume_catalog_links.csv")
+CHECKPOINT_FILE = os.path.join(BACKEND_DIR, "data", "fragrantica_data_from_scraper.csv")
+SEMILLA_FILE = os.path.join(BACKEND_DIR, "data", "perfume_catalog_links.csv")
 LOG_ERRORES_FILE = os.path.join(SCRAPER_DIR, "failed_urls.log")
 LOG_SESIONES_FILE = os.path.join(SCRAPER_DIR, "scraping_sessions.log")
 

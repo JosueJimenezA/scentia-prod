@@ -205,7 +205,7 @@ async def scrape_and_add_fragrance(
     PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, "..")) # .../raíz_proyecto
 
     scraper_path = os.path.join(BACKEND_DIR, "scraper", "scraper_busqueda.py")
-    csv_path = os.path.join(PROJECT_ROOT, "data", "fragrantica_data_from_scraper.csv")
+    csv_path = os.path.join(BACKEND_DIR, "data", "fragrantica_data_from_scraper.csv")
 
     try:
         proc = await asyncio.create_subprocess_exec(
