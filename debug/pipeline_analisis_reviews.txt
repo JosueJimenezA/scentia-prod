@@ -1,0 +1,31 @@
+[ Reviews Textual ]
+       │
+       ├──► 1. Preprocesamiento & Aspect Extraction (SpaCy / Regex)
+       │         └── Filtra frases asociadas a "longevity", "sillage", "compliments"
+       │
+       ├──► 2. Sentiment Analysis por Aspectos (VADER / RoBERTa)
+       │         └── Oculta sesgos de usuarios molestos con el envío/empaque
+       │
+       └──► 3. Agregación a Variables Numéricas de Fragancia
+                 ├── perceived_longevity_score (0.0 a 1.0)
+                 ├── perceived_sillage_score (0.0 a 1.0)
+                 └── compliment_getter_factor (0.0 a 1.0)
+
+
+
+
+[ Review en Español ]
+  "Huele increíble y elegante, pero no dura nada en mi piel y la estela es muy suave"
+                               │
+                               ▼
+        [ Lema & Detección de Aspectos Clave ]
+  ┌───────────────────────┬───────────────────────┬────────────────────────┐
+  │   Dimensión: AROMA    │ Dimensión: DURACIÓN   │  Dimensión: ESTELA     │
+  │ "huele increíble..."  │ "no dura nada..."     │ "estela es muy suave"  │
+  └───────────────────────┴───────────────────────┴────────────────────────┘
+                               │
+                               ▼
+            [ Sentiment Scoring (-1.0 a +1.0) ]
+  ┌───────────────────────┬───────────────────────┬────────────────────────┐
+  │     Aroma: +0.9       │    Duración: -0.8     │     Estela: -0.5       │
+  └───────────────────────┴───────────────────────┴────────────────────────┘

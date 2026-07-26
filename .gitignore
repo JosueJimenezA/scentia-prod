@@ -10,8 +10,8 @@ __pycache__/
 # === Archivos temporales, logs y depuración ===
 scraping_sessions.log
 debug_page.html
-debug/
 .vscode/
+debug/.gitignore
 
 # === Dependencias de Node / Frontend ===
 node_modules/
