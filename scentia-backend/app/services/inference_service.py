@@ -9,7 +9,8 @@ from typing import Optional
 
 from app.models import Fragrance, UserCollection
 
-BASE_DIR = Path(__file__).resolve().parents[3] 
+# Sube 2 niveles: de services/ -> app/ -> scentia-backend/
+BASE_DIR = Path(__file__).resolve().parents[2] 
 MODELOS_DIR = BASE_DIR / "modelos"
 
 class InferenceEngine:
