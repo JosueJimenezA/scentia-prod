@@ -15,9 +15,19 @@ app = FastAPI(
 )
 
 # Configuración de CORS para permitir solicitudes desde React/Next.js
+#app.add_middleware(
+    #CORSMiddleware,
+    #allow_origins=["*"],  # En producción se sustituye por el dominio de Vercel
+    #allow_credentials=True,
+    #allow_methods=["*"],
+    #allow_headers=["*"],
+#)
+
+
+# Configuración de CORS con RegEx para admitir Vercel (Producción y Previews) y Localhost
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción se sustituye por el dominio de Vercel
+    allow_origin_regex=r"https://.*\.vercel\.app|http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
