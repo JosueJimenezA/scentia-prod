@@ -44,7 +44,7 @@ def reseed_fragrances():
     for _, row in df.iterrows():
         row_dict = row.to_dict()
         url_str = str(row_dict['url'])
-        deterministic_id = str(uuid.uuid5(uuid.NAMESPACE_URL, url_str))
+        deterministic_id = uuid.uuid5(uuid.NAMESPACE_URL, url_str)
         longevity_dist, sillage_dist, gender_voted_dist, price_value_dist = separate_distributions_from_dict(row_dict)
 
         fragrance = Fragrance(
