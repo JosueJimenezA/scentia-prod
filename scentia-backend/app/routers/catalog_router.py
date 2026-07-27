@@ -47,12 +47,12 @@ async def test_search_fragrantica_exact_dom(query_text: str) -> Optional[str]:
 
         try:
             # domcontentloaded no espera analíticas en segundo plano (evita timeouts)
-            await page.goto(search_url, wait_until="domcontentloaded", timeout=12000)
+            await page.goto(search_url, wait_until="domcontentloaded", timeout=30000) ## 12000
             
             # Selector exacto del grid principal descubierto en la inspección de DOM
             grid_selector = 'div.ais-StateResults div.grid a[href*="/perfume/"]'
             
-            await page.wait_for_selector(grid_selector, timeout=7000)
+            await page.wait_for_selector(grid_selector, timeout=12000) # 7000
             first_card = page.locator(grid_selector).first
             
             if await first_card.count() > 0:
@@ -99,7 +99,7 @@ async def search_fragrantica_url_playwright(query_text: str) -> Optional[str]:
 
         try:
             print(f"🔎 Buscando enlace en Google para: '{query_text}'...")
-            await page.goto(google_url, wait_until="domcontentloaded", timeout=15000)
+            await page.goto(google_url, wait_until="domcontentloaded", timeout=30000)  #15000
             
             # Buscar selectores de enlaces de resultados en Google
             links = await page.locator('a[href*="fragrantica."]').all()
