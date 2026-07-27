@@ -1,4 +1,3 @@
-# scentia-backend/app/routers/main_agent_router.py
 import json
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from app.prompts.main_prompt import PerfumeAgentRequest, PerfumeAgentResponse, ChatMessage

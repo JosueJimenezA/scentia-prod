@@ -1,0 +1,19 @@
+# Imagen oficial con Python y Playwright (con Chromium y sus dependencias listas)
+FROM mcr.microsoft.com/playwright/python:v1.45.0-jammy
+
+WORKDIR /app
+
+# Copiamos el archivo de requerimientos e instalamos dependencias de Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiamos todo el código fuente del backend
+COPY . .
+
+# Render asigna el puerto mediante la variable de entorno $PORT (usualmente 10000)
+ENV PORT=10000
+EXPOSE $PORT
+
+# Iniciamos Uvicorn apuntando a tu modulo app.main:app
+# Usamos 0.0.0.0 para que escuche conexiones externas
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
