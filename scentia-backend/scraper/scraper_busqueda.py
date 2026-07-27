@@ -25,7 +25,7 @@ LOG_ERRORES_FILE = os.path.join(SCRAPER_DIR, "failed_urls.log")
 LOG_SESIONES_FILE = os.path.join(SCRAPER_DIR, "scraping_sessions.log")
 
 # Ajusta el número de pestañas concurrentes según tu CPU/Ancho de banda (3 a 5 es ideal)
-CONCURRENCY_LIMIT = 3
+CONCURRENCY_LIMIT = 1
 
 
 async def extract_dom_distribution_native(card_locator):

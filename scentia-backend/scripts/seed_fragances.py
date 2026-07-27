@@ -4,6 +4,7 @@ import pandas as pd
 import json
 import ast
 import re
+import uuid
 
 # Agregar el directorio raíz de scentia-backend al path de Python
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -42,10 +43,13 @@ def reseed_fragrances():
     inserted_count = 0
     for _, row in df.iterrows():
         row_dict = row.to_dict()
+        url_str = str(row_dict['url'])
+        deterministic_id = str(uuid.uuid5(uuid.NAMESPACE_URL, url_str))
         longevity_dist, sillage_dist, gender_voted_dist, price_value_dist = separate_distributions_from_dict(row_dict)
 
         fragrance = Fragrance(
-            fragrantica_url=str(row_dict['url']),
+            id=deterministic_id,
+            fragrantica_url=url_str,
             bottle_image_url=str(row_dict.get('bottle_image_url')) if pd.notna(row_dict.get('bottle_image_url')) else None,
             name=str(row_dict.get('name_raw', '')).strip() if pd.notna(row_dict.get('name_raw')) else 'Sin Nombre',
             designer=str(row_dict.get('designer_raw', '')).strip().title() if pd.notna(row_dict.get('designer_raw')) else 'Desconocido',

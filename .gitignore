@@ -20,6 +20,7 @@ dist/
 build/
 scentia-frontend/dist/
 scentia-frontend/build/
+scentia-backend/check_embeddings.py
 
 # === Variables de entorno locales ===
 .env

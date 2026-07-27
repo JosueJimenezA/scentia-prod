@@ -19,32 +19,58 @@ async def perform_web_search(query: str) -> str:
     """
     Función para realizar la búsqueda web en tiempo real.
     Puedes usar APIs como Tavily, Serper.dev o DuckDuckGo API.
+    tavily_key = os.getenv("TAVILY_API_KEY")
     """
     try:
-        # Ejemplo usando la API gratuita de Tavily o Serper si tienes TAVILY_API_KEY
-        tavily_key = os.getenv("TAVILY_API_KEY")
-        if tavily_key:
+            tavily_key = os.getenv("TAVILY_API_KEY")
+            if tavily_key:
+                async with httpx.AsyncClient() as http_client:
+                    res = await http_client.post(
+                        "https://api.tavily.com/search",
+                        json={
+                            "api_key": tavily_key, 
+                            "query": query, 
+                            "max_results": 5,
+                            "search_depth": "advanced"
+                        }
+                    )
+                    data = res.json()
+                    results = [
+                        f"Fuente: {r.get('title')}\nContenido: {r.get('content')}" 
+                        for r in data.get("results", [])
+                    ]
+                    if results:
+                        return "INFORMACIÓN EN TIEMPO REAL OBTENIDA DE LA WEB:\n" + "\n---\n".join(results)
+                    return "No se encontraron resultados relevantes en la web para esta consulta."
+    
+            # Fallback con DuckDuckGo API (JSON libre/público)
             async with httpx.AsyncClient() as http_client:
-                res = await http_client.post(
-                    "https://api.tavily.com/search",
-                    json={"api_key": tavily_key, "query": query, "max_results": 3}
+                res = await http_client.get(
+                    "https://api.duckduckgo.com/",
+                    params={"q": query, "format": "json", "no_html": 1},
+                    headers={"User-Agent": "Mozilla/5.0"}
                 )
                 data = res.json()
-                results = [f"- {r['title']}: {r['content']}" for r in data.get("results", [])]
-                return "\n".join(results) if results else "No se encontraron resultados relevantes."
-
-        # Fallback a DuckDuckGo Instant Search / Búsqueda pública si no hay API Key configurada
-        async with httpx.AsyncClient() as http_client:
-            res = await http_client.get(
-                "https://html.duckduckgo.com/html/",
-                params={"q": f"{query} perfume"},
-                headers={"User-Agent": "Mozilla/5.0"}
-            )
-            # Retornamos un resumen básico del texto
-            return f"Resultados de búsqueda web para '{query}': Se encontraron referencias de lanzamientos recientes."
-
+                abstract = data.get("AbstractText", "")
+                related = [
+                    t.get("Text") for t in data.get("RelatedTopics", []) 
+                    if isinstance(t, dict) and "Text" in t
+                ]
+                
+                combined = []
+                if abstract:
+                    combined.append(f"Resumen: {abstract}")
+                if related:
+                    combined.append("Detalles relacionados:\n" + "\n".join(related[:3]))
+    
+                if combined:
+                    return "INFORMACIÓN OBTENIDA DE LA WEB:\n" + "\n".join(combined)
+                
+                return f"Búsqueda realizada para '{query}'. No se hallaron artículos ni bases de datos actualizadas con un lanzamiento bajo ese criterio específico."
+    
     except Exception as e:
-        return f"Error al ejecutar la búsqueda web: {str(e)}"
+        return f"Error técnico al ejecutar la búsqueda web: {str(e)}"
+    
 
 
 async def process_perfume_chat(
