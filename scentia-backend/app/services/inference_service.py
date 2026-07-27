@@ -1,15 +1,15 @@
 import pickle
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from sklearn.metrics.pairwise import cosine_similarity
+from scipy.sparse import hstack
 from sqlalchemy.orm import Session
 from pathlib import Path
-from typing import Optional
 
 from app.models import Fragrance, UserCollection
+from app.limpieza import parse_notes_list_clean, parse_dict # Asegúrate de tener estas funciones importadas
 
-# Sube 2 niveles: de services/ -> app/ -> scentia-backend/
 BASE_DIR = Path(__file__).resolve().parents[2] 
 MODELOS_DIR = BASE_DIR / "modelos"
 
@@ -17,8 +17,7 @@ class InferenceEngine:
     """
     Motor Singleton que mantiene en memoria los artefactos ML
     y realiza cálculos de vectores, clusters y recomendaciones.
-
-    Tambien procesa las recomendaciones basados en geolocalizaciòn, clima y fecha
+    Soporta inferencia *on-the-fly* para fragancias fuera del dataset de entrenamiento.
     """
 
     def __init__(
@@ -34,18 +33,99 @@ class InferenceEngine:
         if "id" in self.df_master.columns:
             self.df_master["id_str"] = self.df_master["id"].astype(str)
 
-        # 2. Matriz de Embeddings
+        # 2. Matriz de Embeddings precalculada
         self.X_embedding = np.load(embeddings_path)
 
-        # 3. Artefactos ML
+        # 3. Artefactos ML (vectorizadores, escaladores, SVD, etc.)
         with open(artifacts_path, "rb") as f:
             self.artifacts = pickle.load(f)
+
+        self.tfidf = self.artifacts.get('tfidf_vectorizer')
+        self.scaler = self.artifacts.get('scaler')
+        self.svd = self.artifacts.get('svd')
+        self.kmeans = self.artifacts.get('kmeans_model')
+        self.num_cols = self.artifacts.get('num_cols', [
+            'longevity_norm', 'sillage_norm', 'compliments_norm',
+            'day_ratio', 'satisfaction_rate', 'controversy_index',
+            'is_elegant', 'is_clean', 'is_leadership_boss', 'is_seductive', 'is_fresh_casual'
+        ])
 
         # Mapeo rápido UUID (str) -> Índice en matriz de embeddings
         df_master_ids = self.df_master["id"].astype(str).tolist()
         self.id_to_index = {str(fid): idx for idx, fid in enumerate(df_master_ids)}
 
         print(f"[InferenceEngine] Listo. Total fragancias master: {len(self.df_master)}")
+
+    def _transform_fragrance_on_the_fly(self, frag: Fragrance) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Transforma una fragancia desconocida (no presente en el Parquet)
+        al espacio vectorial reducido (SVD) en tiempo real y retorna los pesos intermedios.
+        """
+        # 1. Construir Corpus Olfativo Ponderado
+        def clean_val(v):
+            if isinstance(v, (list, tuple)):
+                return ", ".join([str(x) for x in v])
+            return str(v) if v else ""
+
+        top = parse_notes_list_clean(clean_val(frag.top_notes))
+        mid = parse_notes_list_clean(clean_val(frag.heart_notes))
+        base = parse_notes_list_clean(clean_val(frag.base_notes))
+        
+        corpus = (top * 1) + (mid * 2) + (base * 3)
+        weighted_corpus = " ".join(corpus) if corpus else "unknown_note"
+
+        # 2. Extraer / Calcular Características Numéricas y Arquetipos Binarios
+        archetypes = {
+            'is_elegant': ['iris', 'leather', 'sandalwood', 'amber', 'rose', 'vetiver'],
+            'is_clean': ['musk', 'white_musk', 'lavender', 'aldehyde', 'neroli', 'bergamot'],
+            'is_leadership_boss': ['tobacco', 'oud', 'cedar', 'leather', 'incense'],
+            'is_seductive': ['vanilla', 'tonka_bean', 'amber', 'cinnamon', 'praline'],
+            'is_fresh_casual': ['lemon', 'citrus', 'mint', 'aquatic_notes', 'apple']
+        }
+        
+        num_dict = {
+            'longevity_norm': 0.5,
+            'sillage_norm': 0.5,
+            'compliments_norm': 0.5,
+            'day_ratio': 0.5,
+            'satisfaction_rate': 0.5,
+            'controversy_index': 0.0
+        }
+
+        active_archetypes = {}
+        for arch, kws in archetypes.items():
+            is_active = any(k in weighted_corpus for k in kws)
+            num_dict[arch] = 1.0 if is_active else 0.0
+            active_archetypes[arch] = 1.0 if is_active else 0.0
+
+        # Crear array numérico respetando el orden exacto de `num_cols`
+        num_vector = np.array([[num_dict.get(col, 0.0) for col in self.num_cols]])
+
+        # 3. Transformación usando los Artefactos ML
+        tfidf_vec = self.tfidf.transform([weighted_corpus])
+        num_scaled = self.scaler.transform(num_vector)
+
+        # Extraer términos TF-IDF con mayor peso
+        feature_names = np.array(self.tfidf.get_feature_names_out())
+        nonzero_indices = tfidf_vec.nonzero()[1]
+        tfidf_weights = {feature_names[i]: round(float(tfidf_vec[0, i]), 4) for i in nonzero_indices}
+
+        # Combinar Sparse Matrix
+        X_comb = hstack([tfidf_vec, num_scaled]).tocsr()
+
+        # Proyectar en el espacio SVD (Retorna un vector 1D de dimensión N=15)
+        embedding_vec = self.svd.transform(X_comb)[0]
+
+        # Estructurar metadatos y pesos para depuración
+        weights_info = {
+            "weighted_corpus": weighted_corpus,
+            "top_tfidf_words": tfidf_weights,
+            "active_archetypes": active_archetypes,
+            "numeric_scaled_vector": [round(float(v), 4) for v in num_scaled[0]],
+            "svd_embedding_components": [round(float(v), 4) for v in embedding_vec]
+        }
+
+        return embedding_vec, weights_info
 
     def get_user_fragrances_subsample(self, user_id: str, db: Session) -> List[Tuple[Fragrance, float]]:
         """Obtiene las fragancias 'owned' del usuario y su calificación."""
@@ -80,9 +160,16 @@ class InferenceEngine:
             weight = float(user_rating) / 5.0 if user_rating else 1.0
 
             if frag_id_str in self.id_to_index:
+                # OBTENCIÓN RÁPIDA: Si ya existe en la matriz local/parquet
                 idx = self.id_to_index[frag_id_str]
-                user_vectors.append(self.X_embedding[idx])
-                user_weights.append(weight)
+                vector = self.X_embedding[idx]
+            else:
+                # PREDICCIÓN ON-THE-FLY: Si es una fragancia nueva de la BD que no estaba en el Parquet
+                vector, weights_info = self._transform_fragrance_on_the_fly(frag)
+                self.last_onthefly_weights = weights_info
+
+            user_vectors.append(vector)
+            user_weights.append(weight)
 
         if not user_vectors:
             return None
@@ -93,21 +180,16 @@ class InferenceEngine:
         user_centroid = np.sum(user_vectors * user_weights, axis=0) / np.sum(user_weights)
         user_centroid = user_centroid.reshape(1, -1)
 
-        # Obtener Cluster o Etiqueta Predicha
-        subsample_df = self.df_master[self.df_master["id_str"].isin(collected_ids)]
+        # Predecir Cluster mediante KMeans usando el Centroide Calculado
+        predicted_cluster = int(self.kmeans.predict(user_centroid)[0])
         
-        predicted_cluster = None
-        predicted_label = "Firma Olfativa Versátil"
+        profile_map = self.artifacts.get('profile_map', {})
+        predicted_label = profile_map.get(predicted_cluster, "Firma Olfativa Versátil")
 
-        if "olfactory_cluster" in subsample_df.columns and not subsample_df["olfactory_cluster"].dropna().empty:
-            predicted_cluster = int(subsample_df["olfactory_cluster"].mode()[0])
-
-        if "olfactory_profile_label" in subsample_df.columns and not subsample_df["olfactory_profile_label"].dropna().empty:
-            predicted_label = str(subsample_df["olfactory_profile_label"].mode()[0])
-
-        # Métricas agregadas (Longevidad y Proyección promedio de su colección)
-        avg_longevity = float(subsample_df["longevity_norm"].mean()) if "longevity_norm" in subsample_df.columns else 0.80
-        avg_sillage = float(subsample_df["sillage_norm"].mean()) if "sillage_norm" in subsample_df.columns else 0.75
+        # Métricas agregadas usando la intersección o defaults
+        subsample_df = self.df_master[self.df_master["id_str"].isin(collected_ids)]
+        avg_longevity = float(subsample_df["longevity_norm"].mean()) if not subsample_df.empty and "longevity_norm" in subsample_df.columns else 0.80
+        avg_sillage = float(subsample_df["sillage_norm"].mean()) if not subsample_df.empty and "sillage_norm" in subsample_df.columns else 0.75
 
         return {
             "user_centroid": user_centroid,
@@ -162,13 +244,11 @@ class InferenceEngine:
         top_k: int = 6
     ) -> List[Dict[str, Any]]:
         """
-        Filtra y recomienda fragancias de acuerdo a las variables meteorológicas de Open-Meteo
-        (temperatura máxima, precipitación, etc.) y opcionalmente el centroide del usuario.
+        Filtra y recomienda fragancias de acuerdo a las variables meteorológicas de Open-Meteo.
         """
         temp_max = weather_forecast.get("temp_max", 20.0)
         precip = weather_forecast.get("precipitation_sum", 0.0)
 
-        # 1. Determinar estación / clima objetivo según temperatura
         if temp_max >= 25.0:
             target_season = "verano"
         elif temp_max <= 13.0:
@@ -180,12 +260,10 @@ class InferenceEngine:
 
         df_scored = self.df_master.copy()
 
-        # 2. Excluir la colección del usuario si se proporciona
         if collected_ids:
             collected_ids_str = set(str(cid) for cid in collected_ids)
             df_scored = df_scored[~df_scored["id_str"].isin(collected_ids_str)]
 
-        # 3. Ponderación por similitud de perfil o rating
         if user_centroid is not None:
             user_centroid = np.asarray(user_centroid)
             if user_centroid.ndim == 1:
@@ -194,24 +272,18 @@ class InferenceEngine:
             similarities = cosine_similarity(user_centroid, self.X_embedding)[0]
             df_scored["similarity_score"] = similarities
         else:
-            # Si el usuario no tiene perfil, usamos el rating global como base
             df_scored["similarity_score"] = df_scored["global_rating"].fillna(0)
 
-        # 4. Bonificación / Filtrado por estación ideal
         if "best_season" in df_scored.columns:
-            # Multiplicador para dar preferencia a fragancias de la estación objetivo
             season_mask = df_scored["best_season"].str.lower() == target_season
             df_scored.loc[season_mask, "similarity_score"] *= 1.25
 
-        # 5. Si hay lluvia intensa, bonificar notas más pesadas/cálidas si existen
         if precip > 5.0 and "accords_query_string" in df_scored.columns:
             warm_mask = df_scored["accords_query_string"].str.contains("especiado|amaderado|cálido", case=False, na=False)
             df_scored.loc[warm_mask, "similarity_score"] *= 1.15
 
-        # 6. Seleccionar Top K
         top_df = df_scored.sort_values(by="similarity_score", ascending=False).head(top_k)
 
-        # 7. Dar formato de salida compatible con el Router
         results = []
         for _, row in top_df.iterrows():
             results.append({
