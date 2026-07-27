@@ -1,5 +1,6 @@
 # Imagen oficial con Python y Playwright (con Chromium y sus dependencias listas)
-FROM mcr.microsoft.com/playwright/python:v1.45.0-jammy
+# Compatible con python 3.11
+FROM mcr.microsoft.com/playwright/python:v1.45.0-noble
 
 WORKDIR /app
 
