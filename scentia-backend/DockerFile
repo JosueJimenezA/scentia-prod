@@ -1,19 +1,25 @@
-# Usa v1.48.0 o v1.50.0 que ya incluyen versiones modernas de Python (3.11/3.12)
-FROM mcr.microsoft.com/playwright/python:v1.48.0-jammy
+# Imagen base con Python 3.11 garantizado
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copiamos el archivo de requerimientos e instalamos dependencias de Python
+# Instalar dependencias necesarias para compilar y ejecutar navegadores
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiamos e instalamos tus requerimientos
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiamos todo el código fuente del backend
+# Instalar Chromium y sus dependencias de sistema operativo automáticamente
+RUN playwright install --with-deps chromium
+
+# Copiamos todo el código del backend
 COPY . .
 
-# Render asigna el puerto mediante la variable de entorno $PORT (usualmente 10000)
 ENV PORT=10000
 EXPOSE $PORT
 
-# Iniciamos Uvicorn apuntando a tu modulo app.main:app
-# Usamos 0.0.0.0 para que escuche conexiones externas
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
