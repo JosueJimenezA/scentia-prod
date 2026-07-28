@@ -162,7 +162,7 @@ async def scrape_fragrantica_deep_raw(browser, url):
 
 async def main():
     urls_objetivo = [
-        "https://www.fragrantica.com/perfume/Creed/Aventus-9828.html",
+        "https://www.fragrantica.es/perfume/Narciso-Rodriguez/Narciso-Rodriguez-For-Her-Musc-Nude-88936.html",
         "https://www.fragrantica.com/perfume/Dior/Sauvage-31861.html"
     ]
     
@@ -172,7 +172,7 @@ async def main():
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False, 
+            headless=True, 
             args=["--disable-blink-features=AutomationControlled"]
         )
         
