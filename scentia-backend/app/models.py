@@ -52,7 +52,8 @@ class Fragrance(Base):
     base_notes = Column(ARRAY(Text), default=[])
     perfumers = Column(ARRAY(Text), default=[])
     accords = Column(ARRAY(Text), default=[])
-    
+
+    vibe_reactions_dist = Column(JSONB, default={})
     seasons_dist = Column(JSONB, default={})
     time_of_day_dist = Column(JSONB, default={})
     longevity_dist = Column(JSONB, default={})

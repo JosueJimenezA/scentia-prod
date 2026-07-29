@@ -24,7 +24,8 @@ def reseed_fragrances():
     csv_path = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__), 
-        "../data/fragrantica_data_from_scraper.csv"
+        #"../data/fragrantica_data_from_scraper.csv"
+        "../../auxiliares/scarpers versiones/homologado/fragrantica_data_from_scraper.csv"
     )
 )
     if not os.path.exists(csv_path):
@@ -45,7 +46,7 @@ def reseed_fragrances():
         row_dict = row.to_dict()
         url_str = str(row_dict['url'])
         deterministic_id = uuid.uuid5(uuid.NAMESPACE_URL, url_str)
-        longevity_dist, sillage_dist, gender_voted_dist, price_value_dist = separate_distributions_from_dict(row_dict)
+        seasons_dist, time_of_day_dist, longevity_dist, sillage_dist, gender_voted_dist, price_value_dist = separate_distributions_from_dict(row_dict)
 
         fragrance = Fragrance(
             id=deterministic_id,
@@ -60,9 +61,10 @@ def reseed_fragrances():
             heart_notes=parse_notes_list_clean(row_dict.get('heart_notes_raw')),
             base_notes=parse_notes_list_clean(row_dict.get('base_notes_raw')),
             perfumers=parse_notes_list_clean(row_dict.get('perfumers_raw')),
-            
-            seasons_dist=parse_dict(row_dict.get('seasons_raw_dist')),
-            time_of_day_dist=parse_dict(row_dict.get('time_of_day_raw_dist')),
+
+            vibe_reactions_dist=parse_dict(row_dict.get('vibe_reactions_raw_dist')),
+            seasons_dist=seasons_dist,
+            time_of_day_dist=time_of_day_dist,
             longevity_dist=longevity_dist,
             sillage_dist=sillage_dist,
             price_value_dist=price_value_dist,

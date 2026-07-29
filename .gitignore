@@ -22,6 +22,21 @@ scentia-frontend/dist/
 scentia-frontend/build/
 scentia-backend/check_embeddings.py
 
+
+### DATOS ESTABLES EN EL ULTIMO COMMIT 
+scentia-backend/modelos/df_master_estable.parquet
+scentia-backend/modelos/profiling_artifacts_estable.pkl
+scentia-backend/modelos/X_embedding_estable.npy
+
+
+### FUNCIONES QUE MODIFICAN LAS TABLAS DE POSGRES
+auxiliares/add_columns.py
+debug/cluster_inference.py
+
+
+fragrantica_raw_v5.csv
+
+
 # === Variables de entorno locales ===
 .env
 .env.local

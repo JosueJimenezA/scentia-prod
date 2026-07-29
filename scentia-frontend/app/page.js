@@ -404,13 +404,11 @@ export default function App() {
     setCurrentMessage('');
     setChatError('');
 
-    // Formatear historial existente para la API
     const historyPayload = chatMessages.map(msg => ({
       role: msg.role,
       content: msg.content
     }));
 
-    // Agregar mensaje local del usuario al estado UI
     setChatMessages(prev => [...prev, { role: 'user', content: userText }]);
     setIsAiReplying(true);
 
@@ -438,7 +436,6 @@ export default function App() {
     }
   };
 
-  // Captura de audio usando MediaRecorder en memoria (Blob)
   const startRecording = async () => {
     setChatError('');
     audioChunksRef.current = [];
@@ -455,7 +452,6 @@ export default function App() {
       };
 
       mediaRecorder.onstop = async () => {
-        // Detener los tracks del micrófono
         stream.getTracks().forEach(track => track.stop());
 
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
@@ -638,7 +634,7 @@ export default function App() {
                   <button
                     type="submit"
                     disabled={weatherLoading}
-                    className="bg-amber-600 hover:bg-amber-500 text-neutral-950 text-xs font-semibold px-5 py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
+                    className="bg-amber-600 hover:bg-amber-500 text-neutral-950 text-xs font-semibold px-5 py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
                   >
                     {weatherLoading ? (
                       <>
@@ -664,6 +660,7 @@ export default function App() {
 
               {weatherData && (
                 <div className="space-y-6">
+                  {/* Tarjeta con los datos del Clima */}
                   <div className="bg-neutral-950/80 border border-amber-900/20 rounded-xl p-5 space-y-4">
                     <div className="flex items-start justify-between border-b border-neutral-800 pb-3">
                       <div>
@@ -672,13 +669,13 @@ export default function App() {
                           Ubicación
                         </span>
                         <h3 className="text-base font-serif text-neutral-100 mt-0.5">
-                          {weatherData.location?.formatted_name || `${weatherData.location?.latitude}, ${weatherData.location?.longitude}`}
+                          {weatherData.location?.formatted_name || weatherData.location?.name || `${weatherData.location?.latitude}, ${weatherData.location?.longitude}`}
                         </h3>
                       </div>
                       <div className="text-right">
                         <span className="text-[10px] text-neutral-500 block">Fecha Objetivo</span>
                         <span className="text-xs text-amber-200 font-mono">
-                          {weatherData.parsed_intent?.target_date || 'Hoy / Pronóstico cercano'}
+                          {weatherData.parsed_intent?.target_date || weatherData.forecast?.date || 'Hoy / Pronóstico cercano'}
                         </span>
                       </div>
                     </div>
@@ -724,46 +721,64 @@ export default function App() {
                     )}
                   </div>
 
-                  {weatherData.clustering_alternatives && weatherData.clustering_alternatives.length > 0 && (
-                    <div className="pt-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-serif text-neutral-100 flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-amber-500" />
-                            Alternativas Sugeridas para las Condiciones Meteorológicas
-                          </h3>
-                          <p className="text-xs text-neutral-400">
-                            Familias y notas óptimas agrupadas según la temperatura y humedad prevista.
-                          </p>
-                        </div>
+                  {/* BLOQUE A: SECCIÓN DE LA COLECCIÓN PERSONAL */}
+                  {weatherData.collection_recommendations && weatherData.collection_recommendations.length > 0 && (
+                    <div className="pt-2 space-y-4">
+                      <div>
+                        <h3 className="text-lg font-serif text-neutral-100 flex items-center gap-2 font-medium">
+                          <Sparkles className="w-4 h-4 text-emerald-400" />
+                          De Tu Colección Personal
+                        </h3>
+                        <p className="text-xs text-neutral-400 mt-0.5">
+                          Las mejores fragancias que ya posees optimizadas para el clima previsto.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {weatherData.collection_recommendations.map((item, idx) => (
+                          <WeatherFragranceCard key={item.id || idx} item={item} isCollection={true} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* BLOQUE B: SECCIÓN DE DESCUBRIMIENTOS DEL CATÁLOGO */}
+                  {weatherData.discovery_recommendations && weatherData.discovery_recommendations.length > 0 && (
+                    <div className="pt-2 space-y-4">
+                      <div>
+                        <h3 className="text-lg font-serif text-neutral-100 flex items-center gap-2 font-medium">
+                          <Compass className="w-4 h-4 text-amber-500" />
+                          Alternativas Sugeridas para las Condiciones Meteorológicas
+                        </h3>
+                        <p className="text-xs text-neutral-400 mt-0.5">
+                          Fragancias recomendadas del catálogo según la temperatura y humedad prevista.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {weatherData.discovery_recommendations.map((item, idx) => (
+                          <WeatherFragranceCard key={item.id || idx} item={item} isCollection={false} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FALLBACK: Si la respuesta backend antigua envía `clustering_alternatives` */}
+                  {!weatherData.collection_recommendations && !weatherData.discovery_recommendations && weatherData.clustering_alternatives && weatherData.clustering_alternatives.length > 0 && (
+                    <div className="pt-2 space-y-4">
+                      <div>
+                        <h3 className="text-lg font-serif text-neutral-100 flex items-center gap-2 font-medium">
+                          <Sparkles className="w-4 h-4 text-amber-500" />
+                          Alternativas Sugeridas para las Condiciones Meteorológicas
+                        </h3>
+                        <p className="text-xs text-neutral-400 mt-0.5">
+                          Fragancias recomendadas de tu colección y del catálogo según el clima previsto.
+                        </p>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {weatherData.clustering_alternatives.map((item, idx) => (
-                          <div key={idx} className="bg-neutral-950 border border-neutral-800 p-5 rounded-xl flex flex-col justify-between space-y-3">
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">
-                                {item.family || item.cluster || 'Familia Recomendada'}
-                              </span>
-                              <h4 className="text-sm font-serif text-neutral-100 mt-1 font-semibold">
-                                {item.name || item.label || `Opción ${idx + 1}`}
-                              </h4>
-                              {item.description && (
-                                <p className="text-xs text-neutral-400 mt-2 leading-relaxed">
-                                  {item.description}
-                                </p>
-                              )}
-                              {item.recommended_notes && (
-                                <div className="mt-3 flex flex-wrap gap-1">
-                                  {item.recommended_notes.map((note, nIdx) => (
-                                    <span key={nIdx} className="bg-neutral-900 text-neutral-300 border border-neutral-800 text-[10px] px-2 py-0.5 rounded">
-                                      {note}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          <WeatherFragranceCard key={item.id || idx} item={item} isCollection={item.in_user_collection} />
                         ))}
                       </div>
                     </div>
@@ -1256,7 +1271,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB: ASISTENTE IA (UNIFICADO CON MEMORIA Y ENTRADA DE VOZ/WHISPER) */}
+          {/* TAB: ASISTENTE IA */}
           {activeTab === 'assistant' && (
             <div className="bg-neutral-900/60 border border-neutral-800 rounded-2xl flex flex-col h-[650px] overflow-hidden shadow-2xl relative">
               
@@ -1289,7 +1304,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* ÁREA DE MENSAJES (HISTORIAL DE CONVERSACIÓN) */}
+              {/* HISTORIAL DE CHAT */}
               <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-neutral-950/40">
                 {chatMessages.map((msg, idx) => {
                   const isUser = msg.role === 'user';
@@ -1300,7 +1315,6 @@ export default function App() {
                           ? 'bg-amber-600 text-neutral-950 font-medium rounded-tr-none shadow-md' 
                           : 'bg-neutral-900/90 text-neutral-200 border border-neutral-800 rounded-tl-none shadow-md'
                       }`}>
-                        {/* RENDERIZADO BÁSICO DE MARKDOWN / PÁRRAFOS */}
                         {msg.content.split('\n\n').map((paragraph, pIdx) => (
                           <p key={pIdx} className="whitespace-pre-wrap">
                             {paragraph}
@@ -1311,7 +1325,6 @@ export default function App() {
                   );
                 })}
 
-                {/* ANIMACIÓN MIENTRAS PROCESA O RESPUNDE */}
                 {isAiReplying && (
                   <div className="flex justify-start">
                     <div className="bg-neutral-900/90 text-neutral-400 border border-neutral-800 rounded-2xl rounded-tl-none p-4 text-xs flex items-center gap-3">
@@ -1335,7 +1348,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* INPUT CONTAINER (TEXTO + BOTÓN GRABAR VOZ) */}
+              {/* INPUT DE CHAT Y BOTÓN DE MICRÓFONO */}
               <div className="p-4 border-t border-neutral-800/80 bg-neutral-950">
                 <form onSubmit={handleSendTextMessage} className="flex items-center gap-2">
                   <input
@@ -1347,7 +1360,6 @@ export default function App() {
                     className="flex-1 bg-neutral-900 border border-neutral-800 text-neutral-100 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-amber-600 transition disabled:opacity-50 placeholder:text-neutral-500"
                   />
 
-                  {/* BOTÓN DE MICRÓFONO */}
                   <button
                     type="button"
                     onClick={isRecording ? stopRecording : startRecording}
@@ -1362,7 +1374,6 @@ export default function App() {
                     {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
 
-                  {/* BOTÓN ENVIAR TEXTO */}
                   <button
                     type="submit"
                     disabled={!currentMessage.trim() || isAiReplying || isRecording}
@@ -1384,6 +1395,79 @@ export default function App() {
             </div>
           )}
         </main>
+      </div>
+    </div>
+  );
+}
+
+{/* COMPONENTE REUTILIZABLE PARA TARJETAS DE RECOMENDACIÓN POR CLIMA */}
+function WeatherFragranceCard({ item, isCollection }) {
+  return (
+    <div className="bg-neutral-950 border border-neutral-800/90 rounded-xl p-4 flex flex-col justify-between space-y-4 relative hover:border-neutral-700 transition duration-200">
+      <div className="space-y-3">
+        {/* Encabezado: Familia y Badge de Origen */}
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider leading-tight">
+            {item.family || item.cluster || 'FAMILIA RECOMENDADA'}
+          </span>
+
+          {isCollection ? (
+            <span className="bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 text-[9px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap">
+              Tu Colección
+            </span>
+          ) : (
+            <span className="bg-neutral-900 text-neutral-400 border border-neutral-800 text-[9px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap">
+              Descubrimiento
+            </span>
+          )}
+        </div>
+
+        {/* Imagen + Marca y Nombre */}
+        <div className="flex items-center gap-3">
+          {item.bottle_image_url ? (
+            <div className="w-16 h-20 bg-neutral-900/80 border border-neutral-800 rounded-lg p-1 flex-shrink-0 flex items-center justify-center overflow-hidden">
+              <img
+                src={item.bottle_image_url}
+                alt={item.name || 'Perfume'}
+                className="w-full h-full object-contain"
+                loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-16 h-20 bg-neutral-900/50 border border-neutral-800 rounded-lg flex-shrink-0 flex items-center justify-center text-neutral-600 text-[10px]">
+              Sin Foto
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-serif font-bold text-neutral-100 truncate leading-snug">
+              {item.name || item.label || 'Perfume Sugerido'}
+            </h4>
+            <p className="text-xs text-neutral-400 truncate mt-0.5 font-medium">
+              {item.designer || 'Casa Diseñadora'}
+            </p>
+          </div>
+        </div>
+
+        {/* Descripción o notas si existen */}
+        {item.description && (
+          <p className="text-xs text-neutral-400 leading-relaxed line-clamp-2">
+            {item.description}
+          </p>
+        )}
+      </div>
+
+      {/* Footer: Afinidad climática */}
+      <div className="pt-2 border-t border-neutral-900 flex justify-between items-center text-xs text-neutral-400">
+        <span className="text-[11px] text-neutral-400">Afinidad climática</span>
+        <span className="text-neutral-200 font-mono font-semibold">
+          {item.similarity_score !== undefined && item.similarity_score !== null
+            ? `${Math.round(item.similarity_score * 100)}%`
+            : '100%'}
+        </span>
       </div>
     </div>
   );

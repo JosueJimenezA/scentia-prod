@@ -47,7 +47,7 @@ async def analyze_and_get_weather(
 
         # 4. Obtener perfil olfativo (centroide) y colección del usuario si está autenticado
         user_centroid = None
-        collected_ids = []
+        user_collection_ids = []
 
         if current_user:
             # Obtener el perfil olfativo vectorial
@@ -55,16 +55,17 @@ async def analyze_and_get_weather(
             if profile and hasattr(profile, "user_centroid"):
                 user_centroid = profile.user_centroid
 
-            # Obtener IDs de la colección privada para excluirlos
+            # Obtener IDs de la colección privada para RECOMENDAR desde ella
             user_fragrances = db.query(UserCollection.fragrance_id).filter(UserCollection.user_id == current_user.id).all()
-            collected_ids = [f.fragrance_id for f in user_fragrances]
+            user_collection_ids = [f.fragrance_id for f in user_fragrances]
 
-        # 5. Inferencia vectorial combinando clima + perfil del usuario
-        clustering_alternatives = inference_engine.get_weather_based_recommendations(
+        # 5. Inferencia separada para colección y descubrimientos
+        recommendations = inference_engine.get_weather_based_recommendations(
             weather_forecast=target_forecast,
             user_centroid=user_centroid,
-            collected_ids=collected_ids,
-            top_k=6
+            user_collection_ids=user_collection_ids,
+            top_k_collection=3,  # 3 opciones de su armario
+            top_k_discovery=3   # 3 opciones para descubrir
         )
 
         return {
@@ -72,7 +73,8 @@ async def analyze_and_get_weather(
             "parsed_intent": parsed_intent,
             "location": coords,
             "forecast": target_forecast,
-            "clustering_alternatives": clustering_alternatives
+            "collection_recommendations": recommendations["collection_recommendations"],
+            "discovery_recommendations": recommendations["discovery_recommendations"]
         }
 
     except ValueError as ve:

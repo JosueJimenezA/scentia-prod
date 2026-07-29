@@ -63,7 +63,7 @@ def parse_notes_list(val: Any) -> List[str]:
 
 def insert_single_fragrance_from_raw(db, raw_dict: dict) -> Fragrance:
     # 1. Separar distribuciones mediante la función centralizada
-    longevity_dist, sillage_dist, gender_voted_dist, price_value_dist = separate_distributions_from_dict(raw_dict)
+    seasons_dist, time_of_day_dist, longevity_dist, sillage_dist, gender_voted_dist, price_value_dist = separate_distributions_from_dict(raw_dict)
 
     # 2. Instanciar el modelo con los campos homogenizados
     new_fragrance = Fragrance(
@@ -81,8 +81,9 @@ def insert_single_fragrance_from_raw(db, raw_dict: dict) -> Fragrance:
         perfumers=parse_notes_list_clean(raw_dict.get('perfumers_raw')),
         
         # Distribuciones limpias
-        seasons_dist=parse_dict(raw_dict.get('seasons_raw_dist')),
-        time_of_day_dist=parse_dict(raw_dict.get('time_of_day_raw_dist')),
+         vibe_reactions_dist=parse_dict(raw_dict.get('vibe_reactions_raw_dist')),
+        seasons_dist=seasons_dist,
+        time_of_day_dist=time_of_day_dist,
         longevity_dist=longevity_dist,
         sillage_dist=sillage_dist,
         price_value_dist=price_value_dist,

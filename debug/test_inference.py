@@ -35,8 +35,9 @@ def run_test():
     # -------------------------------------------------------------------------
     # CONFIGURACIÓN Y CONEXIÓN A POSTGRESQL (RENDER)
     # -------------------------------------------------------------------------
-    RENDER_DATABASE_URL = "postgresql://scentia_admin:m6TZWG6R3AyxqKtJ6cU2sSJS5ogFXf91@dpg-d9iquh37uimc73c12plg-a.oregon-postgres.render.com/scentia_db?sslmode=require"
-    
+    #RENDER_DATABASE_URL = "postgresql://scentia_admin:m6TZWG6R3AyxqKtJ6cU2sSJS5ogFXf91@dpg-d9iquh37uimc73c12plg-a.oregon-postgres.render.com/scentia_db?sslmode=require"
+    RENDER_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:0354@localhost:5432/scentia_db")
+
     engine = create_engine(RENDER_DATABASE_URL, pool_pre_ping=True)
     Session = sessionmaker(bind=engine)
     db = Session()

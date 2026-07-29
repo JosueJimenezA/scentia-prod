@@ -23,7 +23,7 @@ from app.limpieza import parse_notes_list_clean, parse_dict
 # ==============================================================================
 # CONFIGURACIÓN GLOBAL
 # ==============================================================================
-APPLY_SYNTHETIC_INJECTION: bool = True
+APPLY_SYNTHETIC_INJECTION: bool = False
 
 PERFUMERS_POOL = [
     "Olivier Polge", "Dominique Ropion", "Francis Kurkdjian",
@@ -199,13 +199,13 @@ def run_feature_engineering_pipeline(df_raw: pd.DataFrame) -> tuple:
 
     df['notes_corpus_weighted'] = df.apply(build_weighted_corpus, axis=1)
 
-    # 4. Mapeos Arquetípicos Binarios
+    # Mapeos Arquetípicos Binarios en Español
     archetypes = {
-        'is_elegant': ['iris', 'leather', 'sandalwood', 'amber', 'rose', 'vetiver'],
-        'is_clean': ['musk', 'white_musk', 'lavender', 'aldehyde', 'neroli', 'bergamot'],
-        'is_leadership_boss': ['tobacco', 'oud', 'cedar', 'leather', 'incense'],
-        'is_seductive': ['vanilla', 'tonka_bean', 'amber', 'cinnamon', 'praline'],
-        'is_fresh_casual': ['lemon', 'citrus', 'mint', 'aquatic_notes', 'apple']
+        'is_elegant': ['iris', 'cuero', 'sandalo', 'ambar', 'rosa', 'vetiver'],
+        'is_clean': ['almizcle', 'almizcle_blanco', 'lavanda', 'aldehido', 'neroli', 'bergamota'],
+        'is_leadership_boss': ['tabaco', 'oud', 'cedro', 'cuero', 'incienso'],
+        'is_seductive': ['vainilla', 'habatonka', 'haba_tonka', 'ambar', 'canela', 'praline'],
+        'is_fresh_casual': ['limon', 'citricos', 'menta', 'notas_acuaticas', 'manzana']
     }
     for arch, kws in archetypes.items():
         df[arch] = df['notes_corpus_weighted'].apply(lambda c: int(any(k in c for k in kws)))
@@ -225,16 +225,25 @@ def run_feature_engineering_pipeline(df_raw: pd.DataFrame) -> tuple:
         seasons = parse_dict(row.get('seasons_raw_dist'))
         tod = parse_dict(row.get('time_of_day_raw_dist'))
 
-        love, like, ok = parse_count(vibes.get('love', 0)), parse_count(vibes.get('like', 0)), parse_count(vibes.get('ok', 0))
-        dislike, hate = parse_count(vibes.get('dislike', 0)), parse_count(vibes.get('hate', 0))
+        # 1. Sentimientos en español (pueden venir con o sin mayúsculas/acentos)
+        # Buscamos de forma flexible mapeando las claves comunes en español
+        love = parse_count(vibes.get('me encanta', vibes.get('love', 0)))
+        like = parse_count(vibes.get('me gusta', vibes.get('like', 0)))
+        ok = parse_count(vibes.get('me es indiferente', vibes.get('indiferente', vibes.get('ok', 0))))
+        dislike = parse_count(vibes.get('no me gusta', vibes.get('dislike', 0)))
+        hate = parse_count(vibes.get('la odio', vibes.get('odio', vibes.get('hate', 0))))
         
         tot = love + like + ok + dislike + hate
         pos, neg = love + like, dislike + hate
 
-        parsed_seasons = {k: parse_count(v) for k, v in seasons.items()}
+        # 2. Estaciones en español
+        # Si seasons es un dict de español, p. ej. {"invierno": "1.2k", "primavera": "500", ...}
+        parsed_seasons = {k.lower(): parse_count(v) for k, v in seasons.items()}
         best_s = max(parsed_seasons, key=parsed_seasons.get) if parsed_seasons else 'versatile'
 
-        day, night = parse_count(tod.get('day', 0)), parse_count(tod.get('night', 0))
+        # 3. Momento del día en español (día / noche)
+        day = parse_count(tod.get('día', tod.get('dia', tod.get('day', 0))))
+        night = parse_count(tod.get('noche', tod.get('night', 0)))
 
         return pd.Series({
             'total_votes': tot,

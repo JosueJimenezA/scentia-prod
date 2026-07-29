@@ -137,18 +137,25 @@ async def scrape_fragrantica_deep_raw(browser, url, semaphore):
                         note_texts = [await n.text_content() for n in await notes.all()]
                         raw_record[record_key] = ", ".join([n.strip() for n in note_texts if n.strip()])
 
-            # Tarjetas y Distribuciones
+            # ---------------------------------------------------------------------------
+            # TARJETAS DE REACCIONES, ESTACIONES Y FRANZAS HORARIAS (SOPORTE ES/EN)
+            # ---------------------------------------------------------------------------
             cards = await page.locator('.tw-rating-card').all()
             for card in cards:
-                header = card.locator('.tw-rating-card-header')
+                # Buscamos directamente la etiqueta con el texto descriptivo
+                header = card.locator('.tw-rating-card-label, .tw-rating-card-header')
                 if await header.count() > 0:
-                    text = (await header.first.text_content()).lower()
-                    if "rating" in text:
+                    header_text = (await header.first.text_content()).lower().strip()
+                    
+                    # Coincide con 'puntuación' (.es) o 'rating' (.com)
+                    if "puntuación" in header_text or "puntuacion" in header_text or "rating" in header_text:
                         raw_record['vibe_reactions_raw_dist'] = await extract_dom_distribution_native(card)
-                    elif "when to wear" in text:
-                        dist = await extract_dom_distribution_native(card)
-                        raw_record['seasons_raw_dist'] = dist
-                        raw_record['time_of_day_raw_dist'] = dist
+                        
+                    # Coincide con 'cuándo usarlo' (.es) o 'when to wear' (.com)
+                    elif "cuándo usar" in header_text or "cuando usar" in header_text or "when to wear" in header_text:
+                        raw_record['seasons_raw_dist'] = await extract_dom_distribution_native(card)
+                        raw_record['time_of_day_raw_dist'] = await extract_dom_distribution_native(card)
+            # ---------------------------------------------------------------------------
 
             perf_section = page.locator('#performance')
             if await perf_section.count() > 0:

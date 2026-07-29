@@ -240,15 +240,18 @@ class InferenceEngine:
         self,
         weather_forecast: dict,
         user_centroid: Optional[np.ndarray] = None,
-        collected_ids: Optional[List[Any]] = None,
-        top_k: int = 6
-    ) -> List[Dict[str, Any]]:
+        user_collection_ids: Optional[List[Any]] = None,
+        top_k_collection: int = 3,
+        top_k_discovery: int = 3
+    ) -> Dict[str, Any]:
         """
-        Filtra y recomienda fragancias de acuerdo a las variables meteorológicas de Open-Meteo.
+        Calcula recomendaciones divididas explícitamente entre la Colección del Usuario
+        y Descubrimientos del Catálogo General, ajustando la afinidad climática.
         """
         temp_max = weather_forecast.get("temp_max", 20.0)
         precip = weather_forecast.get("precipitation_sum", 0.0)
 
+        # 1. Determinación de Estación
         if temp_max >= 25.0:
             target_season = "verano"
         elif temp_max <= 13.0:
@@ -260,44 +263,65 @@ class InferenceEngine:
 
         df_scored = self.df_master.copy()
 
-        if collected_ids:
-            collected_ids_str = set(str(cid) for cid in collected_ids)
-            df_scored = df_scored[~df_scored["id_str"].isin(collected_ids_str)]
-
+        # 2. Base Score: Similitud Coseno o Rating Normalizado (0.0 a 0.70)
+        # Escalamos la base a un máximo de 0.70 para dejar un 30% de margen a los boosts climáticos
         if user_centroid is not None:
             user_centroid = np.asarray(user_centroid)
             if user_centroid.ndim == 1:
                 user_centroid = user_centroid.reshape(1, -1)
             
             similarities = cosine_similarity(user_centroid, self.X_embedding)[0]
-            df_scored["similarity_score"] = similarities
+            # Mapeamos la similitud coseno (-1 a 1 o 0 a 1) al rango base 0.0 - 0.70
+            df_scored["base_score"] = np.clip(similarities, 0, 1) * 0.70
         else:
-            df_scored["similarity_score"] = df_scored["global_rating"].fillna(0)
+            raw_rating = df_scored["global_rating"].fillna(0.0)
+            df_scored["base_score"] = (raw_rating / 5.0) * 0.70
 
+        df_scored["similarity_score"] = df_scored["base_score"]
+
+        # 3. Aplicación de Boosts Climáticos
+        # Coincidencia con la estación (+25% sobre la puntuación base)
         if "best_season" in df_scored.columns:
             season_mask = df_scored["best_season"].str.lower() == target_season
             df_scored.loc[season_mask, "similarity_score"] *= 1.25
 
+        # Clima lluvioso/frío (+15% sobre la puntuación acumulada)
         if precip > 5.0 and "accords_query_string" in df_scored.columns:
             warm_mask = df_scored["accords_query_string"].str.contains("especiado|amaderado|cálido", case=False, na=False)
             df_scored.loc[warm_mask, "similarity_score"] *= 1.15
 
-        top_df = df_scored.sort_values(by="similarity_score", ascending=False).head(top_k)
+        # Normalizamos la puntuación final dividiendo entre el máximo teórico posible (0.70 * 1.25 * 1.15 = 1.006)
+        max_possible_score = 0.70 * 1.25 * 1.15
+        df_scored["final_affinity"] = np.clip(df_scored["similarity_score"] / max_possible_score, 0.0, 1.0)
 
-        results = []
-        for _, row in top_df.iterrows():
-            results.append({
-                "id": str(row["id"]),
-                "name": row.get("name_raw"),
-                "designer": row.get("designer_raw"),
-                "bottle_image_url": row.get("bottle_image_url"),
-                "family": row.get("olfactory_profile_label", target_season.capitalize()),
-                "recommended_season": target_season,
-                "similarity_score": round(float(row["similarity_score"]), 4),
-                "global_rating": float(row.get("global_rating")) if pd.notnull(row.get("global_rating")) else None
-            })
+        # 4. Separación Estricta: Colección vs. Descubrimientos
+        collection_set = set(str(cid) for cid in user_collection_ids) if user_collection_ids else set()
+        
+        df_collection = df_scored[df_scored["id_str"].isin(collection_set)]
+        df_discovery = df_scored[~df_scored["id_str"].isin(collection_set)]
 
-        return results
+        # Helper para formatear los resultados
+        def format_results(df_subset, top_k, source_label):
+            top_df = df_subset.sort_values(by="final_affinity", ascending=False).head(top_k)
+            items = []
+            for _, row in top_df.iterrows():
+                items.append({
+                    "id": str(row["id"]),
+                    "name": row.get("name_raw"),
+                    "designer": row.get("designer_raw"),
+                    "bottle_image_url": row.get("bottle_image_url"),
+                    "family": row.get("olfactory_profile_label", target_season.capitalize()),
+                    "recommended_season": target_season,
+                    "similarity_score": round(float(row["final_affinity"]), 4),
+                    "global_rating": float(row.get("global_rating")) if pd.notnull(row.get("global_rating")) else None,
+                    "source": source_label
+                })
+            return items
+
+        return {
+            "collection_recommendations": format_results(df_collection, top_k_collection, "colección"),
+            "discovery_recommendations": format_results(df_discovery, top_k_discovery, "descubrimiento")
+        }
 
 
 # Instancia Global Singleton
