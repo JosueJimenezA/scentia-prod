@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine, Base
-from app.routers import auth_router, catalog_router, collection_router, weather_router, profile_router, main_agent_router
+from app.routers import auth_router, catalog_router, collection_router, weather_router, profile_router, main_agent_router, router_diag
 
 # Crear las tablas en la base de datos si no existen
 Base.metadata.create_all(bind=engine)
@@ -44,6 +44,7 @@ app.include_router(collection_router.router)
 app.include_router(weather_router.router)  # agente de clima
 app.include_router(profile_router.router)  # agente de perfil olfativo
 app.include_router(main_agent_router.router)  # agente de perfumería
+app.include_router(router_diag.router)
 
 @app.get("/")
 def root():
