@@ -32,7 +32,7 @@ scentia-backend/modelos/X_embedding_estable.npy
 ### FUNCIONES QUE MODIFICAN LAS TABLAS DE POSGRES
 auxiliares/add_columns.py
 debug/cluster_inference.py
-
+debug/muestra.csv
 
 fragrantica_raw_v5.csv
 

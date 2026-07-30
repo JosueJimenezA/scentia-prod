@@ -283,7 +283,7 @@ def run_feature_engineering_pipeline(df_raw: pd.DataFrame) -> tuple:
 
     # 7. Clustering KMeans
     n_clusters = min(9, len(df))
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    kmeans = KMeans(n_clusters=6, random_state=42, n_init=10)
     df['olfactory_cluster'] = kmeans.fit_predict(X_embed)
 
     profile_map = {

@@ -156,32 +156,32 @@ export default function App() {
   };
 
   const fetchUserCollection = async (page = 1) => {
-    setIsLoadingColl(true);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '15',
-        ...(filterStyle && { scent_type: filterStyle }),
-        ...(filterSeason && { season: filterSeason }),
-        ...(filterTime && { time_of_day: filterTime })
-      });
+  setIsLoadingColl(true);
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: '15',
+      ...(filterStyle && { filterStyle }),
+      ...(filterSeason && { filterSeason }),
+      ...(filterTime && { filterTime })
+    });
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/collection/?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUserCollection(data.items);
-        setCollPage(data.page);
-        setCollTotalPages(data.total_pages);
-        setCollTotalItems(data.total_items);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoadingColl(false);
+    const res = await fetch(`${API_BASE_URL}/api/v1/collection/?${params}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setUserCollection(data.items);
+      setCollPage(data.page);
+      setCollTotalPages(data.total_pages);
+      setCollTotalItems(data.total_items);
     }
-  };
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setIsLoadingColl(false);
+  }
+};
 
   const handleToggleCollection = async (fragranceId) => {
     try {
@@ -810,11 +810,12 @@ export default function App() {
                   className="bg-neutral-950 border border-neutral-800 text-xs text-neutral-200 rounded-xl px-3 py-2 focus:border-amber-600 outline-none"
                 >
                   <option value="">Todas las familias / estilo</option>
-                  <option value="dulce">Dulce / Gourmand</option>
-                  <option value="amaderado">Amaderado / Maderas</option>
-                  <option value="fresco">Limpio / Fresco</option>
-                  <option value="especiado">Especiado / Cálido</option>
-                  <option value="vainilla">Vainilla</option>
+                  <option value="Oriental / gourmand">Oriental / gourmand</option>
+                  <option value="Amaderado fresco e Informal">Amaderado fresco e Informal</option>
+                  <option value="Limpio y atalcado">Limpio y atalcado</option>
+                  <option value="Nicho / Retador">Nicho / Retador</option>
+                  <option value="Dulce Nocturno / Versátil Elegante">Dulce Nocturno / Versátil Elegante</option>
+                  <option value="Cuero Amaderado de Autoridad">Cuero Amaderado de Autoridad</option>
                 </select>
 
                 <select 
@@ -823,10 +824,10 @@ export default function App() {
                   className="bg-neutral-950 border border-neutral-800 text-xs text-neutral-200 rounded-xl px-3 py-2 focus:border-amber-600 outline-none"
                 >
                   <option value="">Todas las estaciones</option>
-                  <option value="primavera">Primavera</option>
-                  <option value="verano">Verano</option>
-                  <option value="otoño">Otoño</option>
-                  <option value="invierno">Invierno</option>
+                  <option value="Invierno">Invierno</option>
+                  <option value="Verano">Verano</option>
+                  <option value="Primavera">Primavera</option>
+                  <option value="Otoño">Otoño</option>
                 </select>
 
                 <select 
@@ -834,9 +835,9 @@ export default function App() {
                   onChange={(e) => setFilterTime(e.target.value)}
                   className="bg-neutral-950 border border-neutral-800 text-xs text-neutral-200 rounded-xl px-3 py-2 focus:border-amber-600 outline-none"
                 >
-                  <option value="">Cualquier momento</option>
-                  <option value="dia">Día</option>
-                  <option value="noche">Noche</option>
+                  <option value="">Cualquier momento</option> {/* IMPORTANTE: value="" */}
+                  <option value="Día">Día</option>
+                  <option value="Noche">Noche</option>
                 </select>
 
                 {(filterStyle || filterSeason || filterTime) && (

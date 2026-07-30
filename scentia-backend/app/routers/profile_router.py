@@ -5,7 +5,7 @@ import pandas as pd
 
 from app.database import get_db
 from app.models import UserAIProfile, UserCollection
-from app.services.inference_service import inference_engine
+from app.services.inference_v2 import inference_engine_v2
 
 router = APIRouter(
     prefix="/api/users",
@@ -20,7 +20,7 @@ def recalculate_user_ai_profile(user_id: str, db: Session):
     genera recomendaciones actualizadas y actualiza la base de datos.
     """
     # 1. Obtener la submuestra de la BD
-    subsample = inference_engine.get_user_fragrances_subsample(user_id, db)
+    subsample = inference_engine_v2.get_user_fragrances_subsample(user_id, db)
     if not subsample:
         return None
 
@@ -63,7 +63,7 @@ def recalculate_user_ai_profile(user_id: str, db: Session):
     )
 
     # 3. Inferencia de ML Vectorial & Cluster
-    ml_analysis = inference_engine.analyze_user_vector_and_cluster(subsample)
+    ml_analysis = inference_engine_v2.analyze_user_vector_and_cluster(subsample)
 
     # 4. GENERAR RECOMENDACIONES CON EL NUEVO VECTOR
     recommendations = []
@@ -71,7 +71,7 @@ def recalculate_user_ai_profile(user_id: str, db: Session):
         user_centroid = ml_analysis["user_centroid"]
         
         # Invocación a la función de inferencia
-        recommendations = inference_engine.generate_recommendations(
+        recommendations = inference_engine_v2.generate_recommendations(
             user_centroid=user_centroid,
             collected_ids=collected_ids,
             top_k=8
@@ -118,8 +118,8 @@ def get_or_generate_ai_profile(user_id: str, db: Session = Depends(get_db)):
             )
 
     # Inferencia en tiempo real para métricas y recomendaciones
-    subsample = inference_engine.get_user_fragrances_subsample(user_id, db)
-    ml_analysis = inference_engine.analyze_user_vector_and_cluster(subsample)
+    subsample = inference_engine_v2.get_user_fragrances_subsample(user_id, db)
+    ml_analysis = inference_engine_v2.analyze_user_vector_and_cluster(subsample)
 
     recommendations = []
     cluster_info = {
@@ -137,7 +137,7 @@ def get_or_generate_ai_profile(user_id: str, db: Session = Depends(get_db)):
         metrics = ml_analysis["metrics"]
         
         # Generar Recomendaciones Top K
-        recommendations = inference_engine.generate_recommendations(
+        recommendations = inference_engine_v2.generate_recommendations(
             user_centroid=ml_analysis["user_centroid"],
             collected_ids=ml_analysis["collected_ids"],
             top_k=8

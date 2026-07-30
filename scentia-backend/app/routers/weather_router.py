@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.services.weather_agent import parse_user_query
 from app.services.open_meteo import get_coordinates, get_weather_forecast
-from app.services.inference_service import inference_engine  # Instancia Singleton de InferenceEngine
+from app.services.inference_v2 import inference_engine_v2  # Instancia Singleton de InferenceEngine
 from app.database import get_db
 from app.models import UserAIProfile, UserCollection  # Modelos SQLAlchemy
 from app.auth import get_current_user  # Inyección opcional de usuario si existe token
@@ -60,7 +60,7 @@ async def analyze_and_get_weather(
             user_collection_ids = [f.fragrance_id for f in user_fragrances]
 
         # 5. Inferencia separada para colección y descubrimientos
-        recommendations = inference_engine.get_weather_based_recommendations(
+        recommendations = inference_engine_v2.get_weather_based_recommendations(
             weather_forecast=target_forecast,
             user_centroid=user_centroid,
             user_collection_ids=user_collection_ids,

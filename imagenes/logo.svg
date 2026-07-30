@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <!-- Gradiente Dorado Champagne (Lujo y Tendencia) -->
+    <linearGradient id="champagneGold" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9A7B43" />
+      <stop offset="35%" stop-color="#C5A880" />
+      <stop offset="70%" stop-color="#EAD8C2" />
+      <stop offset="100%" stop-color="#B3925D" />
+    </linearGradient>
+
+    <!-- Gradiente Azul Noche/Negro para contrastes finos -->
+    <linearGradient id="darkSlate" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#071118" />
+      <stop offset="100%" stop-color="#122531" />
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(0, -10)">
+    <!-- ================= ISOTIPO: EL FRASCO LINEAL ================= -->
+    
+    <!-- Tapón Minimalista (Línea superior) -->
+    <rect x="375" y="110" width="50" height="12" fill="url(#champagneGold)" rx="2" />
+    <!-- Cuello del frasco -->
+    <rect x="390" y="122" width="20" height="15" fill="none" stroke="url(#champagneGold)" stroke-width="3" />
+
+    <!-- Hombros y Cuerpo del Frasco (Silueta Geométrica Fina) -->
+    <path d="M 330,165 
+             L 470,165 
+             C 485,165 490,175 490,190 
+             L 490,340 
+             C 490,365 470,385 445,385 
+             L 355,385 
+             C 330,385 310,365 310,340 
+             L 310,190 
+             C 310,175 315,165 330,165 Z" 
+          fill="none" 
+          stroke="url(#champagneGold)" 
+          stroke-width="4.5" 
+          stroke-linejoin="round" />
+
+    <!-- Base interior del vidrio (Efecto fondo pesado de perfumería fina) -->
+    <path d="M 322,340 C 322,360 335,373 355,373 L 445,373 C 465,373 478,360 478,340" 
+          fill="none" 
+          stroke="url(#champagneGold)" 
+          stroke-width="2.5" opacity="0.7"/>
+
+    <!-- ================= EL ALMA DEL AROMA: LA "S" TRIPLE ================= -->
+    <!-- Línea 1: Nota de Fondo (Curva inferior interna) -->
+    <path d="M 350,320 
+             C 370,350 430,350 440,310 
+             C 450,270 380,280 400,240" 
+          fill="none" 
+          stroke="url(#champagneGold)" 
+          stroke-width="4" 
+          stroke-linecap="round" />
+
+    <!-- Línea 2: Nota de Corazón (Fluido central formando la S) -->
+    <path d="M 370,315 
+             C 380,335 420,335 425,305 
+             C 432,265 368,265 375,225 
+             C 380,195 420,195 430,215" 
+          fill="none" 
+          stroke="url(#champagneGold)" 
+          stroke-width="4" 
+          stroke-linecap="round" />
+
+    <!-- Línea 3: Nota de Salida (Estela superior que escapa) -->
+    <path d="M 400,290 
+             C 420,250 350,260 360,220 
+             C 370,180 430,180 450,210" 
+          fill="none" 
+          stroke="url(#champagneGold)" 
+          stroke-width="3" 
+          stroke-linecap="round" 
+          opacity="0.6" />
+  </g>
+
+  <!-- ================= TEXTO CORPORATIVO ================= -->
+  <text x="402" y="475" 
+        font-family="'Inter', 'Montserrat', 'Helvetica', sans-serif" 
+        font-size="58" 
+        font-weight="800" 
+        fill="#071118" 
+        letter-spacing="16" 
+        text-anchor="middle">SCENTIA</text>
+</svg>

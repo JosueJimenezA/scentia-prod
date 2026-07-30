@@ -6,6 +6,7 @@ import json
 from app.database import get_db
 from app.models import User, Fragrance, UserCollection
 from app.auth import get_current_user
+from app.services.inference_v2 import inference_engine_v2
 
 router = APIRouter(prefix="/api/v1/collection", tags=["Colección de Usuario"])
 
@@ -46,57 +47,93 @@ def toggle_collection_item(
 def get_user_collection(
     page: int = Query(1, ge=1),
     limit: int = Query(15, ge=1, le=50),
-    scent_type: Optional[str] = Query(None, description="Filtro de estilo: dulce, amaderado, limpio, etc."),
-    season: Optional[str] = Query(None, description="Estación: primavera, verano, otoño, invierno"),
-    time_of_day: Optional[str] = Query(None, description="Horario: dia, noche"),
+    # Usamos alias para recibir directamente 'filterStyle', 'filterSeason' y 'filterTime' desde el frontend
+    scent_type: Optional[str] = Query(None, alias="filterStyle", description="Filtro de estilo u olor: dulce, amaderado, etc."),
+    season: Optional[str] = Query(None, alias="filterSeason", description="Estación: primavera, verano, otoño, invierno"),
+    time_of_day: Optional[str] = Query(None, alias="filterTime", description="Horario: dia, noche"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Obtiene la colección del usuario con paginación de 15 en 15 y filtros dinámicos."""
-    query = db.query(Fragrance).join(UserCollection).filter(UserCollection.user_id == current_user.id)
+    """Obtiene la colección del usuario con paginación y filtrado robusto mediante df_master e InferenceEngine."""
+    
+    # 1. Obtener la colección activa del usuario
+    user_fragrances = (
+        db.query(Fragrance, UserCollection.user_rating)
+        .join(UserCollection, Fragrance.id == UserCollection.fragrance_id)
+        .filter(UserCollection.user_id == current_user.id)
+        .all()
+    )
 
-    # Filtrado por Estilo / Notas
+    if not user_fragrances:
+        return {
+            "page": page,
+            "limit": limit,
+            "total_items": 0,
+            "total_pages": 1,
+            "items": []
+        }
+
+    # 2. Filtrar eficientemente usando el DataFrame Maestro en memoria
+    owned_ids = [str(frag.id) for frag, _ in user_fragrances]
+    
+    # Mapeo id -> rating de la colección para adjuntarlo a la respuesta
+    ratings_map = {str(frag.id): rating for frag, rating in user_fragrances}
+
+    df_sub = inference_engine_v2.df_master[
+        inference_engine_v2.df_master["id_str"].isin(owned_ids)
+    ].copy()
+
+    # --- FILTRO 1: Estilo / Notas Olfativas / Perfil ---
     if scent_type and scent_type.strip():
-        st = f"%{scent_type.strip()}%"
-        query = query.filter(
-            (Fragrance.top_notes.any(st)) | 
-            (Fragrance.heart_notes.any(st)) | 
-            (Fragrance.base_notes.any(st))
-        )
+        term = scent_type.strip().lower()
+        # Busca coincidencia en las notas ponderadas o en la etiqueta del perfil olfativo
+        mask_notes = df_sub["notes_corpus_weighted"].astype(str).str.contains(term, case=False, na=False)
+        mask_label = df_sub["olfactory_profile_label"].astype(str).str.contains(term, case=False, na=False)
+        df_sub = df_sub[mask_notes | mask_label]
 
-    # Obtener todos los candidatos para aplicar filtros sobre JSON de distribuciones si es necesario
-    all_items = query.all()
-    filtered_items = []
+    # --- FILTRO 2: Estación del Año ---
+    if season and season.strip():
+        target_season = season.strip().lower()
+        # Evalúa primero sobre la mejor estación calculada por el pipeline
+        if "best_season" in df_sub.columns:
+            df_sub = df_sub[df_sub["best_season"].astype(str).str.lower() == target_season]
 
-    for item in all_items:
-        keep = True
-        
-        # Filtro por Estación (analizando el JSON seasons_dist extraído del scraper)
-        if season and item.seasons_dist:
-            # Convierte llaves a minúsculas
-            s_dist = {str(k).lower(): str(v).lower() for k, v in item.seasons_dist.items()}
-            if season.lower() not in s_dist and not any(season.lower() in k for k in s_dist.keys()):
-                keep = False
+    # --- FILTRO 3: Momento del Día (Día vs Noche) ---
+    if time_of_day and time_of_day.strip():
+        tod_term = time_of_day.strip().lower()
+        if "day_ratio" in df_sub.columns:
+            if tod_term in ["dia", "día", "day"]:
+                df_sub = df_sub[df_sub["day_ratio"] >= 0.5]
+            elif tod_term in ["noche", "night"]:
+                df_sub = df_sub[df_sub["day_ratio"] < 0.5]
 
-        # Filtro por Día/Noche
-        if time_of_day and item.time_of_day_dist:
-            t_dist = {str(k).lower(): str(v).lower() for k, v in item.time_of_day_dist.items()}
-            if time_of_day.lower() not in t_dist and not any(time_of_day.lower() in k for k in t_dist.keys()):
-                keep = False
-
-        if keep:
-            filtered_items.append(item)
-
-    # Paginación manual de 15 en 15
-    total_items = len(filtered_items)
+    # 3. Paginación
+    total_items = len(df_sub)
     total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
     offset = (page - 1) * limit
-    paginated_items = filtered_items[offset : offset + limit]
+    
+    paginated_df = df_sub.iloc[offset : offset + limit]
+
+    # 4. Formateo del Output estructurado
+    items = []
+    for _, row in paginated_df.iterrows():
+        p_id = str(row["perfume_id"])
+        items.append({
+            "id": p_id,
+            "name": row.get("name_raw"),
+            "designer": row.get("designer_raw"),
+            "bottle_image_url": row.get("bottle_image_url"),
+            "global_rating": float(row.get("global_rating")) if row.get("global_rating") else None,
+            "user_rating": ratings_map.get(p_id),
+            "olfactory_profile_label": row.get("olfactory_profile_label"),
+            "best_season": row.get("best_season"),
+            "day_ratio": row.get("day_ratio")
+        })
 
     return {
         "page": page,
         "limit": limit,
         "total_items": total_items,
         "total_pages": total_pages,
-        "items": paginated_items
+        "items": items
     }
