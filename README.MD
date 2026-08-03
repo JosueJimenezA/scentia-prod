@@ -77,3 +77,72 @@ SCENTIA/
 │   └── 📄 package.json                  # Definición del proyecto Node.js y dependencias
 ├── 🚀 run_proyect.py                    # Script de automatización para despliegue y ejecución local
 └── 📄 requerimentes.txt                 # Dependencias globales del proyecto
+
+
+
+# Reproducibilidad de Resultados y Ejecución en Local
+
+Con el objetivo de garantizar la validez, auditoría y correcta ejecución de la plataforma fuera de los servidores de producción, se describen los pasos secuenciales necesarios para desplegar la arquitectura completa en un entorno local.
+
+## Guía Paso a Paso para el Despliegue Local
+
+1. **Clonación del Repositorio Oficial:**  
+   Obtener el código fuente del proyecto ejecutando el comando de clonación desde la terminal:
+   ```bash
+   git clone https://github.com/JosueJimenezA/scentia-prod.git
+   ```
+
+2. **Cambio a la Rama de Producción Estable:**  
+   Acceder al directorio del proyecto y cambiar hacia la rama refactorizada y probada:
+   ```bash
+   cd scentia-prod
+   git checkout estabilizar-refactor
+   git pull origin estabilizar-refactor
+   ```
+
+3. **Instalación de Dependencias del Sistema:**  
+   Las dependencias pueden gestionarse mediante dos vías equivalentes:
+   * *Entorno Python Virtual:* Instalación del archivo de requerimientos mediante pip:
+     ```bash
+     pip install -r requirements.txt
+     ```
+
+4. **Configuración de Archivos de Variables de Entorno (`.env`):**  
+   Es indispensable crear dos archivos de configuración local para inyectar las credenciales secretas y llaves de API (las cuales se proporcionarán de forma privada):
+   * Crear un archivo `.env` en la ruta `scentia-backend/.env` con las claves del servidor y base de datos.
+   * Crear un archivo `.env.local` en la ruta `scentia-frontend/.env.local` con las claves de entorno de la interfaz web.
+
+5. **Ejecución Unificada de la Aplicación:**  
+   Ejecutar el script principal de orquestación en Python:
+   ```bash
+   python run_proyect.py
+   ```
+   Este script lanzará simultáneamente los servicios de *Backend* (FastAPI) y *Frontend* (Next.js/React), proporcionando en la consola la dirección de puerto local (`http://localhost:3000`) para acceder e interactuar con la interfaz completa de manera estable.
+
+
+   ## Archivos Críticos del Desarrollo
+
+A continuación se detallan los módulos, scripts y artefactos clave que conforman la arquitectura y la lógica de negocio de la plataforma:
+
+### 1. Fase de Análisis Exploratorio y Modelado
+* `debug/eda_perfume_catalog.ipynb`: Cuaderno de Jupyter que contiene el análisis exploratorio de datos (EDA), la fase de ingeniería pre-producción, la definición y entrenamiento de modelos, la justificación técnica de las variables seleccionadas y los principales hallazgos del proyecto.
+
+### 2. Pipelines de Datos y Entrenamiento ML
+* `debug/ingenieria_train.py`: Script principal encargado del pipeline completo de Machine Learning: extracción de datos desde PostgreSQL, procesamiento y limpieza, ingeniería de características, análisis léxico-bayesiano de reseñas, vectorización mediante TF-IDF, reducción de dimensionalidad por Descomposición en Valores Singulares (SVD) y agrupamiento mediante K-Means.
+  > **Nota de versión:** El archivo `debug/ingenieria_train_profile.py` corresponde a una iteración anterior y debe descartarse.
+
+### 3. Motor de Inferencia y Backend (FastAPI)
+* `scentia-backend/app/services/inference_v2.py`: Motor *Singleton* que mantiene cargados en memoria los artefactos del modelo ML. Realiza el cálculo de vectores, asignación de clusters y generación de recomendaciones en tiempo real. Incluye soporte para inferencia *on-the-fly* para fragancias que no se encuentran en el conjunto de datos de entrenamiento original.
+  > **Nota de versión:** El archivo `scentia-backend/app/services/inference_service.py` es una versión obsoleta y no debe considerarse.
+* `scentia-backend/app/main.py`: Punto de entrada del servidor FastAPI. Configura las políticas de CORS y orquesta los routers de la aplicación.
+* `scentia-backend/app/models.py` y `scentia-backend/app/schemas.py`: Módulos que definen el modelo relacional de la base de datos (ORM con SQLAlchemy) y las validaciones de esquemas de datos (Pydantic), respectivamente.
+
+### 4. Artefactos del Modelo de Machine Learning
+* `scentia-backend/app/modelos/`: Directorio que almacena los artefactos consumidos por el motor de inferencia:
+  * `df_master`: Conjunto de datos procesado con las variables de ingeniería y etiquetas finales de clusters.
+  * `profiling_artifacts.pkl`: Pesos, transformadores y parámetros entrenados del modelo.
+  * `X_embeding.npy`: Matriz con las representaciones vectoriales (*embeddings*) de las fragancias.
+
+### 5. Ingesta y Poblado de Datos
+* `scentia-backend/app/scraper/scraper_busqueda.py`: Módulo especializado en la extracción y web scraping para la ingesta masiva de datos.
+* `scentia-backend/app/scripts/seed_fragrances.py`: Script de sembrado que procesa el archivo de datos crudos para poblar la tabla principal de fragancias en la base de datos relacional.
