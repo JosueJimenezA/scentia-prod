@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
-
+import numpy as np
+import pandas as pd
 from app.database import get_db
 from app.models import User, Fragrance, UserCollection
 from app.auth import get_current_user
@@ -47,16 +48,15 @@ def toggle_collection_item(
 def get_user_collection(
     page: int = Query(1, ge=1),
     limit: int = Query(15, ge=1, le=50),
-    # Usamos alias para recibir directamente 'filterStyle', 'filterSeason' y 'filterTime' desde el frontend
     scent_type: Optional[str] = Query(None, alias="filterStyle", description="Filtro de estilo u olor: dulce, amaderado, etc."),
     season: Optional[str] = Query(None, alias="filterSeason", description="Estación: primavera, verano, otoño, invierno"),
     time_of_day: Optional[str] = Query(None, alias="filterTime", description="Horario: dia, noche"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Obtiene la colección del usuario con paginación y filtrado robusto mediante df_master e InferenceEngine."""
+    """Obtiene la colección del usuario combinando el filtrado analítico del DataFrame con los datos de BD SQL."""
     
-    # 1. Obtener la colección activa del usuario
+    # 1. Obtener la colección activa del usuario desde SQL
     user_fragrances = (
         db.query(Fragrance, UserCollection.user_rating)
         .join(UserCollection, Fragrance.id == UserCollection.fragrance_id)
@@ -73,20 +73,20 @@ def get_user_collection(
             "items": []
         }
 
-    # 2. Filtrar eficientemente usando el DataFrame Maestro en memoria
+    # Crear mapeos rápidos usando el objeto Fragrance de SQL
     owned_ids = [str(frag.id) for frag, _ in user_fragrances]
-    
-    # Mapeo id -> rating de la colección para adjuntarlo a la respuesta
     ratings_map = {str(frag.id): rating for frag, rating in user_fragrances}
+    frag_db_map = {str(frag.id): frag for frag, _ in user_fragrances}
 
-    df_sub = inference_engine_v2.df_master[
-        inference_engine_v2.df_master["id_str"].isin(owned_ids)
-    ].copy()
+    # 2. Filtrar sobre el DataFrame Maestro
+    df_master = inference_engine_v2.df_master.copy()
+    df_master["id_str"] = df_master["id_str"].astype(str)
+
+    df_sub = df_master[df_master["id_str"].isin(owned_ids)].copy()
 
     # --- FILTRO 1: Estilo / Notas Olfativas / Perfil ---
     if scent_type and scent_type.strip():
         term = scent_type.strip().lower()
-        # Busca coincidencia en las notas ponderadas o en la etiqueta del perfil olfativo
         mask_notes = df_sub["notes_corpus_weighted"].astype(str).str.contains(term, case=False, na=False)
         mask_label = df_sub["olfactory_profile_label"].astype(str).str.contains(term, case=False, na=False)
         df_sub = df_sub[mask_notes | mask_label]
@@ -94,7 +94,6 @@ def get_user_collection(
     # --- FILTRO 2: Estación del Año ---
     if season and season.strip():
         target_season = season.strip().lower()
-        # Evalúa primero sobre la mejor estación calculada por el pipeline
         if "best_season" in df_sub.columns:
             df_sub = df_sub[df_sub["best_season"].astype(str).str.lower() == target_season]
 
@@ -114,20 +113,68 @@ def get_user_collection(
     
     paginated_df = df_sub.iloc[offset : offset + limit]
 
+    def ensure_list_of_strings(val):
+        """Asegura devolver siempre una lista de strings sin romper cuando val es un numpy array o lista."""
+        # 1. Si es None explícito
+        if val is None:
+            return []
+
+        # 2. Si ya es una lista, tupla o numpy array, iteramos directo sobre sus elementos
+        if isinstance(val, (list, tuple, np.ndarray)):
+            return [str(n).strip() for n in val if n is not None and pd.notna(n) and str(n).strip()]
+
+        # 3. Si es un escalar de Pandas que evalúa a NA/NaN
+        if pd.isna(val):
+            return []
+
+        # 4. Si es string
+        if isinstance(val, str) and val.strip():
+            v_str = val.strip()
+            # Caso en que sea una lista serializada como string '[a, b]'
+            if v_str.startswith("[") and v_str.endswith("]"):
+                try:
+                    parsed = json.loads(v_str)
+                    if isinstance(parsed, list):
+                        return [str(n).strip() for n in parsed if n]
+                except Exception:
+                    pass
+                try:
+                    parsed = ast.literal_eval(v_str)
+                    if isinstance(parsed, list):
+                        return [str(n).strip() for n in parsed if n]
+                except Exception:
+                    pass
+            # Texto plano separado por comas
+            return [n.strip() for n in v_str.split(",") if n.strip()]
+
+        return []
+
     # 4. Formateo del Output estructurado
     items = []
     for _, row in paginated_df.iterrows():
-        p_id = str(row["perfume_id"])
+        p_id = str(row["id_str"])
+        frag_db = frag_db_map.get(p_id)
+
+        # Se leen las notas directamente del objeto SQL (Fragrance)
+        top_val = frag_db.top_notes if frag_db else []
+        heart_val = frag_db.heart_notes if frag_db else []
+        base_val = frag_db.base_notes if frag_db else []
+
         items.append({
             "id": p_id,
-            "name": row.get("name_raw"),
-            "designer": row.get("designer_raw"),
-            "bottle_image_url": row.get("bottle_image_url"),
+            "name": frag_db.name if frag_db else row.get("name_raw"),
+            "designer": frag_db.designer if frag_db else row.get("designer_raw"),
+            "bottle_image_url": row.get("bottle_image_url") or (getattr(frag_db, "image_url", None) if frag_db else None),
             "global_rating": float(row.get("global_rating")) if row.get("global_rating") else None,
             "user_rating": ratings_map.get(p_id),
             "olfactory_profile_label": row.get("olfactory_profile_label"),
             "best_season": row.get("best_season"),
-            "day_ratio": row.get("day_ratio")
+            "day_ratio": row.get("day_ratio"),
+            
+            # Notas inyectadas desde SQL en el formato exacto que espera React
+            "top_notes": ensure_list_of_strings(top_val),
+            "heart_notes": ensure_list_of_strings(heart_val),
+            "base_notes": ensure_list_of_strings(base_val)
         })
 
     return {
